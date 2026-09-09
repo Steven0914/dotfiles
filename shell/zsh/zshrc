@@ -1,0 +1,16 @@
+# NOTE: oh-my-zsh should be sourced first due to keybinding conflicts
+source "$DOTFILES_HOME/shell/zsh/oh-my-zsh"
+source "$DOTFILES_HOME/shell/all"
+
+# >>> tmux >>>
+if [[ -n "$TMUX" ]]; then
+  # inside tmux: separate history
+  unsetopt share_history  # up/down arrow
+  setopt inc_append_history  # incremental
+  setopt append_history  # when exit
+else
+  # outside tmux: you can choose different behavior, e.g., shared history
+  setopt share_history
+  setopt inc_append_history
+fi
+# <<< tmux <<<

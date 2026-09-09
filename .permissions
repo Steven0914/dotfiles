@@ -1,0 +1,5 @@
+700 ssh
+600 ssh/config
+755 bin/drun
+755 docker/entrypoint.sh
+

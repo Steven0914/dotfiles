@@ -1,0 +1,149 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Default settings
+DEFAULT_CUDA="12.4"
+DEFAULT_PYTHON="3.11"
+DEFAULT_GPUS="all"
+
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
+DOTFILES_DIR="$(cd -- "$SCRIPT_DIR/.." && pwd -P)"
+DOCKER_DIR="$DOTFILES_DIR/docker"
+
+show_help() {
+    cat << 'EOF'
+Usage: drun [OPTIONS] [CUDA_VERSION] [PYTHON_VERSION]
+
+Launch an isolated GPU-accelerated AI development container with Conda (Miniforge),
+uv, and your dotfiles automatically configured.
+
+Arguments:
+  CUDA_VERSION        CUDA version (e.g., 12.4, 11.8, 12.1, 12.6). Default: 12.4
+  PYTHON_VERSION      Python version (e.g., 3.11, 3.10, 3.9). Default: 3.11
+
+Options:
+  -c, --cuda <ver>    Specify CUDA version
+  -p, --python <ver>  Specify Python version
+  -g, --gpus <ids>    Specify GPU devices (default: "all", e.g., "device=0,1")
+  -n, --name <name>   Specify custom container name
+  -b, --build         Force rebuild the Docker image
+  -h, --help          Show this help message
+
+Examples:
+  drun                     # Run default (CUDA 12.4 + Python 3.11)
+  drun 11.8                # Run with CUDA 11.8 + Python 3.11
+  drun 11.8 3.10           # Run with CUDA 11.8 + Python 3.10
+  drun -g "device=0" 12.4  # Run on specific GPU (GPU 0)
+EOF
+}
+
+CUDA_VER="$DEFAULT_CUDA"
+PY_VER="$DEFAULT_PYTHON"
+GPUS="$DEFAULT_GPUS"
+CUSTOM_NAME=""
+FORCE_BUILD=0
+POSITIONAL=()
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -c|--cuda)
+            CUDA_VER="$2"
+            shift 2
+            ;;
+        -p|--py|--python)
+            PY_VER="$2"
+            shift 2
+            ;;
+        -g|--gpus)
+            GPUS="$2"
+            shift 2
+            ;;
+        -n|--name)
+            CUSTOM_NAME="$2"
+            shift 2
+            ;;
+        -b|--build)
+            FORCE_BUILD=1
+            shift
+            ;;
+        -h|--help)
+            show_help
+            exit 0
+            ;;
+        -*)
+            echo "[error] Unknown option: $1" >&2
+            show_help
+            exit 1
+            ;;
+        *)
+            POSITIONAL+=("$1")
+            shift
+            ;;
+    esac
+done
+
+if [[ ${#POSITIONAL[@]} -ge 1 ]]; then
+    CUDA_VER="${POSITIONAL[0]}"
+fi
+if [[ ${#POSITIONAL[@]} -ge 2 ]]; then
+    PY_VER="${POSITIONAL[1]}"
+fi
+
+# Normalize CUDA version to official NVIDIA docker image tags
+normalize_cuda_version() {
+    local v="$1"
+    case "$v" in
+        11.8|11.8.*) echo "11.8.0" ;;
+        12.0|12.0.*) echo "12.0.1" ;;
+        12.1|12.1.*) echo "12.1.1" ;;
+        12.2|12.2.*) echo "12.2.2" ;;
+        12.3|12.3.*) echo "12.3.2" ;;
+        12.4|12.4.*) echo "12.4.1" ;;
+        12.5|12.5.*) echo "12.5.1" ;;
+        12.6|12.6.*) echo "12.6.3" ;;
+        12.8|12.8.*|12.9|12.9.*) echo "12.8.0" ;;
+        *) echo "$v" ;;
+    esac
+}
+
+CUDA_FULL="$(normalize_cuda_version "$CUDA_VER")"
+CUDA_TAG="${CUDA_VER//./}"
+PY_TAG="${PY_VER//./}"
+IMAGE_TAG="dotfiles-ai-dev:cuda${CUDA_TAG}-py${PY_TAG}"
+
+if [[ -z "$CUSTOM_NAME" ]]; then
+    DIR_NAME="$(basename "$PWD" | tr -cd '[:alnum:]_-')"
+    CONTAINER_NAME="aidev-${DIR_NAME:-workspace}-${CUDA_TAG}"
+else
+    CONTAINER_NAME="$CUSTOM_NAME"
+fi
+
+if ! command -v docker >/dev/null 2>&1; then
+    echo "[error] Docker is not installed or not in PATH." >&2
+    exit 1
+fi
+
+# Check if image exists or if forced build is requested
+if [[ "$FORCE_BUILD" -eq 1 ]] || ! docker image inspect "$IMAGE_TAG" >/dev/null 2>&1; then
+    echo "[info] Building AI development image: $IMAGE_TAG (CUDA: $CUDA_FULL, Python: $PY_VER)..."
+    docker build \
+        -t "$IMAGE_TAG" \
+        --build-arg CUDA_VERSION="$CUDA_FULL" \
+        --build-arg PYTHON_VERSION="$PY_VER" \
+        "$DOCKER_DIR"
+fi
+
+echo "[info] Launching container '$CONTAINER_NAME' with GPUs ($GPUS)..."
+echo "[info] Workspace mounted: $PWD -> /workspace"
+
+exec docker run \
+    --gpus "$GPUS" \
+    --ipc=host \
+    --network=host \
+    -it \
+    --rm \
+    -v "$PWD:/workspace" \
+    -v "$DOTFILES_DIR:/root/.dotfiles" \
+    -w /workspace \
+    --name "$CONTAINER_NAME" \
+    "$IMAGE_TAG"

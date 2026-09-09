@@ -1,0 +1,7 @@
+[user]
+	name = Hyunuk Shin
+	email = hushin@postech.ac.kr
+[core]
+	editor = vim
+[init]
+	defaultBranch = main

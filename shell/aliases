@@ -1,0 +1,75 @@
+alias grep='grep --color=auto'
+alias fgrep='fgrep --color=auto'
+alias egrep='egrep --color=auto'
+
+alias ll='ls -alF'
+alias la='ls -A'
+alias l='ls -CF'
+
+# nvitop
+if ! command -v nvitop >/dev/null 2>&1; then
+    if command -v uvx >/dev/null 2>&1; then
+        alias nvitop='uvx nvitop'
+    elif command -v pipx >/dev/null 2>&1; then
+        alias nvitop='pipx run nvitop'
+    fi
+fi
+
+# nvim
+if command -v nvim 2>&1 >/dev/null; then
+    alias vim='nvim'
+    alias vi='nvim'
+fi
+
+# dotfiles bin
+if [ -d "$DOTFILES_HOME/bin" ]; then
+    while IFS= read -r _dot_cmd; do
+        [ -f "$DOTFILES_HOME/bin/$_dot_cmd" ] || continue
+        [ -x "$DOTFILES_HOME/bin/$_dot_cmd" ] || continue
+        alias "dot-$_dot_cmd"="$DOTFILES_HOME/bin/$_dot_cmd"
+    done <<< "$(command ls -1 "$DOTFILES_HOME/bin" 2>/dev/null)"
+    unset _dot_cmd
+fi
+
+alias gs='git status'
+alias gp='git push'
+alias gc='git commit'
+alias ga='git add'
+alias gd='git diff'
+alias gdi="git difftool --no-prompt --extcmd='uvx icdiff'"
+
+alias t='tmux'
+alias tls='tmux ls'
+alias tns='tmux new-session -s'
+alias ta='tmux attach'
+alias tat='tmux attach -t'
+
+# tmux session helper with 3-way split (gpustat top-left, 2 shells)
+tnew() {
+    local session_name="${1:-main}"
+
+    if tmux has-session -t "$session_name" 2>/dev/null; then
+        tmux attach-session -t "$session_name"
+        return $?
+    fi
+
+    tmux new-session -d -s "$session_name"
+    tmux split-window -h -t "$session_name"
+    tmux select-pane -t "${session_name}.0"
+    tmux split-window -v -l 67% -t "${session_name}.0"
+    tmux send-keys -t "${session_name}.0" "gpustat -i" C-m
+    tmux select-pane -t "${session_name}.1"
+    tmux attach-session -t "$session_name"
+}
+alias tg='tnew'
+
+alias squeue='squeue -o   "%8i %30j  %9T %12u %8g %9P %4D %12R %4C %13b %8m %11l %11L %p"'
+alias sq='squeue'
+alias sqyh='squeue -u shu914'
+
+# AI Dev Container launcher
+if [ -f "$DOTFILES_HOME/bin/drun" ]; then
+    alias drun="$DOTFILES_HOME/bin/drun"
+fi
+
+
