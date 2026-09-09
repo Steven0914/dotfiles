@@ -3,7 +3,7 @@
 set -euo pipefail
 
 DEFAULT_DOTFILES_DIR="$HOME/.dotfiles"
-DEFAULT_DOTFILES_REPO_URL="https://github.com/shu914/dotfiles"
+DEFAULT_DOTFILES_REPO_URL="https://github.com/Steven0914/dotfiles"
 PERMISSIONS_MANIFEST_NAME=".permissions"
 
 DOTFILES_DIR=""
