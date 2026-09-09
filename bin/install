@@ -505,6 +505,37 @@ ensure_uv() {
     return 0
 }
 
+ensure_claude_code() {
+    if command -v claude >/dev/null 2>&1; then
+        log "[skip] Claude Code is already installed: $(command -v claude)"
+        return 0
+    fi
+
+    if [[ -x "$HOME/.local/bin/claude" ]]; then
+        log "[skip] Claude Code binary found at $HOME/.local/bin/claude"
+        return 0
+    fi
+
+    step "installing Claude Code"
+    if command -v curl >/dev/null 2>&1; then
+        if curl -fsSL https://claude.ai/install.sh | bash >/dev/null 2>&1; then
+            log "[ok] Claude Code installed successfully into ~/.local/bin"
+            return 0
+        fi
+    elif command -v wget >/dev/null 2>&1; then
+        if wget -qO- https://claude.ai/install.sh | bash >/dev/null 2>&1; then
+            log "[ok] Claude Code installed successfully into ~/.local/bin"
+            return 0
+        fi
+    else
+        log "[warn] neither curl nor wget is available; skipping Claude Code"
+        return 0
+    fi
+
+    log "[warn] failed to install Claude Code; continuing installation"
+    return 0
+}
+
 ensure_uv
 
 BOOTSTRAP_CLONED=0
@@ -518,6 +549,13 @@ if is_linux_platform; then
     else
         log "[skip] Homebrew installation skipped"
     fi
+fi
+
+step "optional Claude Code installation"
+if prompt_yes_no "Install Claude Code (https://claude.ai/install.sh)?" "y" "INSTALL_CLAUDE_CODE"; then
+    ensure_claude_code
+else
+    log "[skip] Claude Code installation skipped"
 fi
 
 log "Done. Restart your shell (or source your rc file) to apply changes."
