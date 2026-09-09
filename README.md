@@ -5,7 +5,7 @@
 ## Installation
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/shu914/dotfiles/main/bin/install | bash
+curl -fsSL https://raw.githubusercontent.com/Steven0914/dotfiles/main/bin/install | bash
 source ~/.bashrc  # (or ~/.zshrc)
 ```
 
